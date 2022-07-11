@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">lessonBleInteraction01</string>
+    <string name="action_settings">Настройки</string>
+    <string name="first_fragment_label">Сканер BLE</string>
+    <string name="second_fragment_label">Сервисы BLE</string>
+    <string name="next">Дальше</string>
+    <string name="previous">Назад</string>
+    <string name="default_device_name">Неизвестное устройство</string>
+    <string name="message_permission_granted">Разрешение %1$s получено</string>
+    <string name="message_permission_not_granted">Разрешение %1$s не получено</string>
+    <string name="action_scan">Сканировать</string>
+    <string name="action_stop_scan">Остановить</string>
+</resources>
