@@ -8,8 +8,11 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.grandfatherpikhto.blin.BleScanManager
+import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentScanBinding
 import com.grandfatherpikhto.lessonbleinteraction01.ui.MainActivity
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.RvBtAdapter
@@ -60,6 +63,13 @@ class ScanFragment : Fragment() {
 
         rvBtAdapter.setOnClickListener { bluetoothDevice, _ ->
             mainActivityViewModel.changeCurrentDevice(bluetoothDevice)
+            val navController = findNavController()
+            val currentDestination = navController.currentDestination
+            lifecycleScope.launch {
+                if (currentDestination?.id == R.id.ScanFragment) {
+                    navController.navigate(R.id.action_ScanFragment_to_ServicesFragment)
+                }
+            }
         }
 
         lifecycleScope.launch {

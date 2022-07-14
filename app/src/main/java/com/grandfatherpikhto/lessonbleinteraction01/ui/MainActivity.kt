@@ -102,20 +102,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        lifecycleScope.launch {
-            bleGattManager.flowConnected.collect { connected ->
-                val navController = findNavController(R.id.nav_host_fragment_content_main)
-                val currentDestination = navController.currentDestination
-                if (connected) {
-                    if (currentDestination?.id != R.id.ServicesFragment)
-                        navController.navigate(R.id.action_ScanFragment_to_ServicesFragment)
-                } else {
-                    if (currentDestination?.id != R.id.ScanFragment)
-                        navController.navigate(R.id.action_ServicesFragment_to_ScanFragment)
-                }
-            }
-        }
-
         requestPermissions.requestPermissions(listOf(
             "android.permission.ACCESS_COARSE_LOCATION",
             "android.permission.ACCESS_FINE_LOCATION",

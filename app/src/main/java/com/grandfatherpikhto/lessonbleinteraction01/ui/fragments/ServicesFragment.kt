@@ -1,5 +1,6 @@
 package com.grandfatherpikhto.lessonbleinteraction01.ui.fragments
 
+import android.bluetooth.BluetoothDevice
 import android.os.Bundle
 import android.util.Log
 import android.view.*
@@ -8,14 +9,18 @@ import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
 import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentServicesBinding
 import com.grandfatherpikhto.lessonbleinteraction01.ui.MainActivity
+import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.ServicesAdapter
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.MainActivityViewModel
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.ServicesViewModel
+import kotlinx.coroutines.launch
 
 /**
  * A simple [Fragment] subclass as the second destination in the navigation.
@@ -37,6 +42,8 @@ class ServicesFragment : Fragment() {
     private val servicesViewModel by viewModels<ServicesViewModel>()
     private val mainActivityViewModel by viewModels<MainActivityViewModel>()
 
+    private val servicesAdapter = ServicesAdapter()
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -45,8 +52,19 @@ class ServicesFragment : Fragment() {
         _binding = FragmentServicesBinding.inflate(inflater, container, false)
 
         binding.apply {
-            buttonSecond.setOnClickListener {
-                findNavController().navigate(R.id.action_ServicesFragment_to_ScanFragment)
+            rvServices.adapter = servicesAdapter
+            rvServices.layoutManager = LinearLayoutManager(requireContext())
+        }
+
+        lifecycleScope.launch {
+            bleGattManager.flowConnectionState.collect { state ->
+                if (state == BleGattManager.State.Discovered) {
+                    servicesAdapter.bluetoothGatt = bleGattManager.gatt
+                    bindBleDevice(bleGattManager.gatt?.device)
+                } else {
+                    servicesAdapter.bluetoothGatt = null
+                    bindBleDevice(null)
+                }
             }
         }
 
@@ -64,7 +82,17 @@ class ServicesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        bleGattManager.disconnect()
         _binding = null
+    }
+
+    private fun bindBleDevice(bluetoothDevice: BluetoothDevice?) {
+        binding.apply {
+            tvBleDeviceAddress.text =
+                bluetoothDevice?.address ?: getString(R.string.default_device_address)
+            tvBleDeviceName.text =
+                bluetoothDevice?.name ?: getString(R.string.default_device_name)
+        }
     }
 }
 
