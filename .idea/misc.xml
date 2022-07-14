@@ -3,11 +3,18 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="app/src/main/res/drawable/animation.xml" value="0.2345" />
+        <entry key="app/src/main/res/drawable/ic_baseline_man_24.xml" value="0.227" />
+        <entry key="app/src/main/res/drawable/ic_bt01.xml" value="0.1865" />
+        <entry key="app/src/main/res/drawable/ic_bt02.xml" value="0.1865" />
         <entry key="app/src/main/res/drawable/ic_twogears.xml" value="0.2085" />
         <entry key="app/src/main/res/layout/btdevice_layout.xml" value="0.26171875" />
         <entry key="app/src/main/res/layout/fragment_first.xml" value="0.35" />
         <entry key="app/src/main/res/layout/fragment_scan.xml" value="0.35" />
+        <entry key="app/src/main/res/layout/fragment_services.xml" value="0.25" />
+        <entry key="app/src/main/res/layout/fragment_splash.xml" value="0.13360507246376813" />
         <entry key="app/src/main/res/layout/layout_device.xml" value="0.12853863810252486" />
+        <entry key="app/src/main/res/layout/layout_service.xml" value="0.21" />
         <entry key="app/src/main/res/menu/menu_main.xml" value="0.35" />
         <entry key="app/src/main/res/menu/menu_scan.xml" value="0.1578125" />
       </map>
