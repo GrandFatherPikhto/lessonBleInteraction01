@@ -5,18 +5,14 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.fragment.app.Fragment
-import androidx.core.view.MenuHost
-import androidx.core.view.MenuProvider
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.grandfatherpikhto.blin.BleGattManager
+import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
 import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentServicesBinding
-import com.grandfatherpikhto.lessonbleinteraction01.ui.MainActivity
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.ServicesAdapter
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.MainActivityViewModel
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.ServicesViewModel
@@ -33,10 +29,8 @@ class ServicesFragment : Fragment() {
     // onDestroyView.
     private val binding get() = _binding!!
 
-    private val bleGattManager by lazy {
-        // (requireContext().applicationContext as BleApplication).bleGattManager
-        (requireActivity() as MainActivity).bleGattManager
-    }
+    private var _bleManager:BleManager? = null
+    private val bleManager get() = _bleManager!!
 
     private val logTag = this.javaClass.name
     private val servicesViewModel by viewModels<ServicesViewModel>()
@@ -48,25 +42,8 @@ class ServicesFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-
+        _bleManager = (requireContext().applicationContext as BleApplication).bleManager
         _binding = FragmentServicesBinding.inflate(inflater, container, false)
-
-        binding.apply {
-            rvServices.adapter = servicesAdapter
-            rvServices.layoutManager = LinearLayoutManager(requireContext())
-        }
-
-        lifecycleScope.launch {
-            bleGattManager.flowConnectionState.collect { state ->
-                if (state == BleGattManager.State.Discovered) {
-                    servicesAdapter.bluetoothGatt = bleGattManager.gatt
-                    bindBleDevice(bleGattManager.gatt?.device)
-                } else {
-                    servicesAdapter.bluetoothGatt = null
-                    bindBleDevice(null)
-                }
-            }
-        }
 
         return binding.root
     }
@@ -76,13 +53,34 @@ class ServicesFragment : Fragment() {
             Log.d(logTag, "Try connect to device $device")
             // bleGattManager?.connect(device.address)
         }
+
+        binding.apply {
+            rvServices.adapter = servicesAdapter
+            rvServices.layoutManager = LinearLayoutManager(requireContext())
+        }
+
+        lifecycleScope.launch {
+            bleManager.flowConnectionState.collect { state ->
+                Log.d(logTag, "Connection state: $state")
+                if (state == BleGattManager.State.Discovered) {
+                    Log.d(logTag, "Discovered ${bleManager.gatt}, ${bleManager.connector.gatt}")
+                    servicesAdapter.bluetoothGatt = bleManager.gatt
+                    bindBleDevice(bleManager.gatt?.device)
+                } else {
+                    servicesAdapter.bluetoothGatt = null
+                    bindBleDevice(null)
+                }
+            }
+        }
+
+
         super.onViewCreated(view, savedInstanceState)
     }
 
 
     override fun onDestroyView() {
         super.onDestroyView()
-        bleGattManager.disconnect()
+        bleManager.close()
         _binding = null
     }
 

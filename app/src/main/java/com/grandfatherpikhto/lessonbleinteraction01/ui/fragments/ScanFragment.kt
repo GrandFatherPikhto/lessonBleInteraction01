@@ -1,20 +1,18 @@
 package com.grandfatherpikhto.lessonbleinteraction01.ui.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import androidx.core.view.MenuHost
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.grandfatherpikhto.blin.BleScanManager
+import com.grandfatherpikhto.blin.BleManager
+import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
 import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentScanBinding
-import com.grandfatherpikhto.lessonbleinteraction01.ui.MainActivity
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.RvBtAdapter
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.MainActivityViewModel
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.ScanViewModel
@@ -38,13 +36,11 @@ class ScanFragment : Fragment() {
     private val mainActivityViewModel:MainActivityViewModel by activityViewModels<MainActivityViewModel>()
     private val scanViewModel:ScanViewModel by viewModels<ScanViewModel> ()
 
-    private val bleScanManager:BleScanManager by lazy {
-        // (requireActivity().application as BleApplication).bleScanManager
-        (requireActivity() as MainActivity).bleScanManager
-    }
+    private var _bleManager: BleManager? = null
+    private val bleManager:BleManager get() = _bleManager!!
 
     private val scanMenuProvider:ScanMenuProvider by lazy {
-        ScanMenuProvider(requireContext(), lifecycleScope, bleScanManager)
+        ScanMenuProvider(requireContext(), lifecycleScope)
     }
 
     override fun onCreateView(
@@ -54,7 +50,35 @@ class ScanFragment : Fragment() {
 
         _binding = FragmentScanBinding.inflate(inflater, container, false)
 
-        rvBtAdapter.setItems(bleScanManager.devices)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        initFragment()
+    }
+
+    override fun onPause() {
+        bleManager.stopScan()
+        super.onPause()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+        val menuHost: MenuHost = requireActivity()
+        menuHost.removeMenuProvider(scanMenuProvider)
+    }
+
+    private fun addScanMenu() {
+        val menuHost: MenuHost = requireActivity()
+        menuHost.addMenuProvider(scanMenuProvider)
+    }
+
+    private fun initFragment() {
+        _bleManager = (requireActivity().application as BleApplication).bleManager!!
+
+        rvBtAdapter.setItems(bleManager.scanner.devices)
 
         binding.apply {
             rvBtDevices.adapter = rvBtAdapter
@@ -73,34 +97,23 @@ class ScanFragment : Fragment() {
         }
 
         lifecycleScope.launch {
-            scanViewModel.sfDevice.filterNotNull().collect { bluetoothDevice ->
+            scanViewModel.flowDevice.filterNotNull().collect { bluetoothDevice ->
                 rvBtAdapter.addItem(bluetoothDevice)
             }
         }
 
-        return binding.root
-    }
+        lifecycleScope.launch {
+            bleManager.flowDevice.filterNotNull().collect { bluetoothDevice ->
+                scanViewModel.changeDevice(bluetoothDevice)
+            }
+        }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        lifecycleScope.launch {
+            bleManager.flowScanError.collect { errorCode ->
+                scanViewModel.changeScanError(errorCode)
+            }
+        }
+
         addScanMenu()
-    }
-
-    override fun onPause() {
-        bleScanManager.stopScan()
-        super.onPause()
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-        val menuHost: MenuHost = requireActivity()
-        menuHost.removeMenuProvider(scanMenuProvider)
-    }
-
-    private fun addScanMenu() {
-        Log.d(logTag, "addScanMenu($bleScanManager)")
-        val menuHost: MenuHost = requireActivity()
-        menuHost.addMenuProvider(scanMenuProvider)
     }
 }

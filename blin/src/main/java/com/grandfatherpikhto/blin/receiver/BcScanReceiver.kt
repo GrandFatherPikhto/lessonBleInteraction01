@@ -51,7 +51,7 @@ class BcScanReceiver constructor(private val context: Context,
         intentFilter
     }
 
-    fun destroy() {
+    fun onDestroy() {
         applicationContext.unregisterReceiver(this)
     }
 }

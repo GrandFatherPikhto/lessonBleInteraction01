@@ -16,6 +16,7 @@ import androidx.activity.viewModels
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
 import com.grandfatherpikhto.blin.BleGattManager
+import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.blin.BleScanManager
 import com.grandfatherpikhto.blin.permissions.RequestPermissions
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
@@ -37,21 +38,8 @@ class MainActivity : AppCompatActivity() {
     private val mainActivityViewModel by viewModels<MainActivityViewModel>()
     private val scanViewModel by viewModels<ScanViewModel>()
 
-    val bleScanManager by lazy {
-        BleScanManager(this).let {
-            lifecycle.addObserver(it)
-            (application as BleApplication).bleScanManager = it
-            it
-        }
-    }
-
-    val bleGattManager by lazy {
-        BleGattManager(this, bleScanManager).let {
-            lifecycle.addObserver(it)
-            (application as BleApplication).bleGattManager = it
-            it
-        }
-    }
+    private var _bleManager:BleManager? = null
+    private val bleManager:BleManager get() = _bleManager!!
 
     private val requestPermissions: RequestPermissions by lazy {
         RequestPermissions(this).let {
@@ -62,6 +50,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        BleManager(this).let {
+            lifecycle.addObserver(it)
+            (application as BleApplication).bleManager = it
+            _bleManager = it
+        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -95,9 +89,9 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             mainActivityViewModel.flowCurrentDevice.collect { bluetoothDevice ->
                 if (bluetoothDevice == null) {
-                    bleGattManager.disconnect()
+                    bleManager.close()
                 } else {
-                    bleGattManager.connect(bluetoothDevice.address)
+                    bleManager.connect(bluetoothDevice.address)
                 }
             }
         }

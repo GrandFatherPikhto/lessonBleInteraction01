@@ -13,6 +13,7 @@
     <string name="message_permission_not_granted">Permission %1$s is not granted</string>
     <string name="action_scan">Scan</string>
     <string name="action_stop_scan">Stop Scan</string>
-    <string name="default_service" translatable="false">123e4567-e89b-12d3-a456-426614174000</string>
+    <string name="default_uuid" translatable="false">123e4567-e89b-12d3-a456-426614174000</string>
+    <string name="default_characterstic_value">Unknown value</string>
     <!-- TODO: Remove or change this placeholder text -->
 </resources>

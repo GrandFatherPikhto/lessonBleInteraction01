@@ -6,59 +6,34 @@ import android.content.IntentFilter
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.grandfatherpikhto.blin.receiver.BcGattReceiver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.log
 
-class BleGattManager constructor(private val context: Context,
-                                 private val bleScanManager: BleScanManager,
-                                 private val dispatcher: CoroutineDispatcher = Dispatchers.IO)
-        : DefaultLifecycleObserver {
-    companion object {
-
-    }
-
+class BleGattManager constructor(private val bleManager: BleManager,
+                                 private val dispatcher: CoroutineDispatcher = Dispatchers.IO) {
     enum class State(val value:Int) {
-        Unknown       (0x00),  // Просто, для инициализации
-        Pairing       (0x01),  // Устройство сопрягается
-        Paired        (0x02),  // Устройство сопряжено
-        RejectPairing (0x03),  // Отказ в сопряжении устройства
-        Rescanning    (0x04),  // Запущено пересканирование по адресу устройства
-        Rescanned     (0x05),  // Пересканирование окончено
-        RescanError   (0x06),  // Ошибка пересканирования
-        Disconnecting (0x07),  // Отключение от GATT
-        Disconnected  (0x08),  // Отключены
-        Connecting    (0x09),  // Процесс подключения к GATT
-        Connected     (0x0A),  // Подключены
-        Discovering   (0x0B),  // Начали исследовать сервисы
-        Discovered    (0x0C),  // Сервисы исследованы
-        Error         (0xFE),  // Получена ошибка
-        FatalError    (0xFF)   // Получена фатальная ошибка. Возвращаемся к Фрагменту сканирования устройств
+        Disconnected  (0x00),  // Отключены
+        Disconnecting (0x01),  // Отключение от GATT
+        Connecting    (0x02),  // Процесс подключения к GATT
+        Connected     (0x03),  // Подключены
+        Discovering   (0x04),  // Начали исследовать сервисы
+        Discovered    (0x05),  // Сервисы исследованы
+        Error         (0xFF),  // Получена ошибка
     }
 
     private val logTag = this.javaClass.simpleName
-    private val bluetoothManager:BluetoothManager
-            = context.getSystemService(Context.BLUETOOTH_SERVICE)
-            as BluetoothManager
-    private val bluetoothAdapter = bluetoothManager.adapter
+    private val bluetoothAdapter = bleManager.adapter
     private val bleGattCallback  = BleGattCallback(this, dispatcher)
-    private val bcGattReceiver   = BcGattReceiver(dispatcher)
-    private val bleRescanManager = BleRescanManager(bleScanManager, dispatcher)
     private var bluetoothDevice:BluetoothDevice? = null
     private var reconnectOnError = true
     private var reconnectCounter = 0
     private val mutexClose = Mutex(locked = false)
     private var scope = CoroutineScope(dispatcher)
-    private val maxReconnect = 6
-    private var waitForBound = false
-
-    private val mutableStateFlowConnected = MutableStateFlow(false)
-    val flowConnected get() = mutableStateFlowConnected.asStateFlow()
-    val connected get() = mutableStateFlowConnected.value
 
     private val msfConnectionState  = MutableStateFlow(State.Disconnected)
     val flowConnectionState get() = msfConnectionState.asStateFlow()
@@ -71,53 +46,25 @@ class BleGattManager constructor(private val context: Context,
     private var bluetoothGatt:BluetoothGatt? = null
     val gatt get() = bluetoothGatt
 
-    override fun onCreate(owner: LifecycleOwner) {
-        super.onCreate(owner)
-        context.applicationContext.registerReceiver(bcGattReceiver,
-            makeIntentFilter())
-    }
 
-    override fun onDestroy(owner: LifecycleOwner) {
-        super.onDestroy(owner)
+    fun onDestroy(owner: LifecycleOwner) {
         disconnect()
-        context.applicationContext.unregisterReceiver(bcGattReceiver)
     }
 
     init {
         scope.launch {
-            BleScanManager.stateFlowDevice.filterNotNull().collect { device ->
+            bleManager.scanner.flowDevice.filterNotNull().collect { device ->
                 if (device == bluetoothDevice && reconnectOnError) {
-                    doConnect()
-                }
-            }
-        }
-
-        scope.launch {
-            bcGattReceiver.flowState.collect { bondState ->
-                when(bondState) {
-                    BcGattReceiver.State.Bonding -> {
-                        msfConnectionState.tryEmit(State.Pairing)
-                    }
-                    BcGattReceiver.State.Bondend -> {
-                        msfConnectionState.tryEmit(State.Paired)
-                        doConnect()
-                    }
-                    BcGattReceiver.State.Error -> {
-                        msfConnectionState.tryEmit(State.Error)
-                    }
-                    else -> {
-
-                    }
+                    connect()
                 }
             }
         }
     }
 
-    fun connect(address:String) {
-        bleScanManager.stopScan()
-        bluetoothAdapter?.getRemoteDevice(address).let { device ->
+    fun connect(address:String) : BluetoothGatt? {
+        bluetoothAdapter.getRemoteDevice(address).let { device ->
             bluetoothDevice = device
-            connect()
+            return connect()
         }
     }
 
@@ -125,37 +72,19 @@ class BleGattManager constructor(private val context: Context,
      * Если устройство не сопряжено, сопрягаем его и ждём оповещение сопряжения
      * после получения, повторяем попытку подключения.
      */
-    private fun connect() {
+    private fun connect() : BluetoothGatt? {
         reconnectOnError = true
         bluetoothDevice?.let { device ->
-            if (device.bondState
-                == BluetoothDevice.BOND_NONE) {
-                Log.d(logTag, "Пытаемся сопрячь устройство ${device.address}")
-                bcGattReceiver.bondRequest(device)
-            } else {
-                doConnect()
-            }
-        }
-    }
-
-    private fun doConnect() {
-        bluetoothDevice?.let { device ->
             Log.d(logTag, "Попытка подключения $reconnectCounter к ${device.address}")
-            device.connectGatt(
-                context,
+            return device.connectGatt(
+                bleManager.applicationContext,
                 device.type == BluetoothDevice.DEVICE_TYPE_UNKNOWN,
                 bleGattCallback,
                 BluetoothDevice.TRANSPORT_LE
             )
         }
-    }
 
-    private fun doRescan() {
-        doDisconnect()
-        msfConnectionState.tryEmit(State.Rescanning)
-        bluetoothDevice?.let { device ->
-            bleRescanManager.rescan(device)
-        }
+        return null
     }
 
     /**
@@ -197,10 +126,7 @@ class BleGattManager constructor(private val context: Context,
         if (status == BluetoothGatt.GATT_SUCCESS) {
             gatt?.let {
                 bluetoothGatt = it
-                Log.d(logTag, "Services discovered $bluetoothDevice")
-                mutableStateFlowConnected.tryEmit(true)
                 msfConnectionState.tryEmit(State.Discovered)
-                reconnectCounter = 0
             }
         }
     }
@@ -246,23 +172,6 @@ class BleGattManager constructor(private val context: Context,
             }
         } else {
             msfConnectionState.tryEmit(State.Error)
-            if (reconnectOnError) {
-                if (reconnectCounter < maxReconnect) {
-                    doRescan()
-                } else {
-                    disconnect()
-                }
-            }
         }
-    }
-
-    private fun makeIntentFilter() = IntentFilter().let { intentFilter ->
-        intentFilter.addAction(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
-        intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        intentFilter.addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
-        intentFilter.addAction(BluetoothDevice.ACTION_FOUND)
-
-        intentFilter
     }
 }

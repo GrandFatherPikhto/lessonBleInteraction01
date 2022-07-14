@@ -2,51 +2,49 @@ package com.grandfatherpikhto.blin
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.Context
 import android.content.Intent
 import android.os.ParcelUuid
 import android.util.Log
-import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.grandfatherpikhto.blin.receiver.BcScanReceiver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class BleScanManager (private val context: Context,
-                      private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO) :
-                            DefaultLifecycleObserver {
+class BleScanManager (private val bleManager: BleManager,
+                      private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
 
-    companion object Receiver {
-        private val mutableStateFlowScanning = MutableStateFlow(false)
-        val stateFlowScanning get() = mutableStateFlowScanning.asStateFlow()
-        val valueScanning get() = mutableStateFlowScanning.value
-
-        private val mutableStateFlowDevice = MutableStateFlow<BluetoothDevice?>(null)
-        val stateFlowDevice get() = mutableStateFlowDevice.asStateFlow()
-        val valueDevice get() = stateFlowDevice.value
-
-        private val mutableStateFlowError = MutableStateFlow<Int>(-1)
-        val stateFlowError get() = mutableStateFlowError.asStateFlow()
-        val valueError get() = mutableStateFlowError.value
+    enum class State(val value: Int) {
+        Stopped(0x00),
+        Scanning(0x01),
+        Error(0xFF)
     }
+
+
+    private val msfState = MutableStateFlow(State.Stopped)
+    val flowState get() = msfState.asStateFlow()
+    val state get() = msfState.value
+
+    private val msfDevice = MutableStateFlow<BluetoothDevice?>(null)
+    val flowDevice get() = msfDevice.asStateFlow()
+    val device get() = flowDevice.value
+
+    private val msfError = MutableStateFlow<Int>(-1)
+    val flowError get() = msfError.asStateFlow()
+    val error get() = msfError.value
 
     private val logTag = this.javaClass.simpleName
 
-    private val bluetoothLeScanner by lazy {
-        (context.getSystemService(Context.BLUETOOTH_SERVICE)
-                as BluetoothManager).adapter.bluetoothLeScanner
-    }
+    private val bluetoothLeScanner = bleManager.adapter.bluetoothLeScanner
 
     private val scanFilters = mutableListOf<ScanFilter>()
     private val scanSettingsBuilder = ScanSettings.Builder()
 
-    private val bcScanReceiver = BcScanReceiver(context, this)
+    private val bcScanReceiver = BcScanReceiver(bleManager.applicationContext, this)
     private val bleScanPendingIntent = bcScanReceiver.pendingIntent!!
 
     private var scope = CoroutineScope(ioDispatcher)
@@ -74,7 +72,7 @@ class BleScanManager (private val context: Context,
                   stopTimeout: Long = 0L,
                   clearDevices:Boolean = true
     ) : Boolean {
-        if (!valueScanning) {
+        if (state != State.Scanning) {
             if (clearDevices) {
                 scannedDevices.clear()
             }
@@ -108,7 +106,7 @@ class BleScanManager (private val context: Context,
                 bleScanPendingIntent
             )
             if (result == 0) {
-                mutableStateFlowScanning.tryEmit(true)
+                msfState.tryEmit(State.Scanning)
                 return true
             }
         }
@@ -118,18 +116,10 @@ class BleScanManager (private val context: Context,
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
-        if (valueScanning) {
+        if (state == State.Scanning) {
             Log.d(logTag, "stopScan()")
             bluetoothLeScanner.stopScan(bleScanPendingIntent)
-            mutableStateFlowScanning.tryEmit(false)
-        }
-    }
-
-    fun startStopScan() {
-        if (valueScanning) {
-            stopScan()
-        } else {
-            startScan()
+            msfState.tryEmit(State.Stopped)
         }
     }
 
@@ -147,6 +137,42 @@ class BleScanManager (private val context: Context,
     private fun initScanFilters() {
         val filter = ScanFilter.Builder().build()
         scanFilters.add(filter)
+    }
+
+    fun onDestroy(owner: LifecycleOwner) {
+        stopScan()
+        bcScanReceiver.onDestroy()
+    }
+
+    /**
+     * Проверяем ошибки.
+     */
+    private fun isLeScanNoError(intent: Intent) : Boolean {
+        if (intent.hasExtra(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)) {
+            val callbackType =
+                intent.getIntExtra(BluetoothLeScanner.EXTRA_CALLBACK_TYPE, -1)
+            if (callbackType >= 0) {
+                if (intent.hasExtra(BluetoothLeScanner.EXTRA_ERROR_CODE)) {
+                    val errorCode
+                            = intent.getIntExtra(BluetoothLeScanner.EXTRA_ERROR_CODE, -1 )
+                    msfError.tryEmit(errorCode)
+                    Log.e(logTag, "Scan error: $errorCode")
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    private fun filterRepeat(bluetoothDevice: BluetoothDevice) {
+        if (notEmitRepeat) {
+            if (!scannedDevices.contains(bluetoothDevice)) {
+                msfDevice.tryEmit(bluetoothDevice)
+                scannedDevices.add(bluetoothDevice)
+            }
+        } else {
+            msfDevice.tryEmit(bluetoothDevice)
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -168,54 +194,28 @@ class BleScanManager (private val context: Context,
         return false
     }
 
+    private fun onStopOnFind() {
+        if (stopOnFind.and(names.isNotEmpty()
+                .or(addresses.isNotEmpty())
+                .or(uuids.isNotEmpty()))) {
+            stopScan()
+        }
+    }
+
     @SuppressLint("MissingPermission")
     private fun filterScanResult (scanResult: ScanResult) {
+        Log.d(logTag, "Scan Result: $scanResult")
         scanResult?.let { result ->
             result.device?.let { bluetoothDevice ->
                 if (filterName(bluetoothDevice)
                         .and(filterAddress(bluetoothDevice))
                         .and(filterUuids(bluetoothDevice.uuids))
-                )
-                    if (notEmitRepeat) {
-                        if (!scannedDevices.contains(bluetoothDevice)) {
-                            mutableStateFlowDevice.tryEmit(bluetoothDevice)
-                            scannedDevices.add(bluetoothDevice)
-                        }
-                    } else {
-                        mutableStateFlowDevice.tryEmit(bluetoothDevice)
-                    }
-            }
-        }
-    }
-
-    override fun onCreate(owner: LifecycleOwner) {
-        super.onCreate(owner)
-    }
-
-    override fun onDestroy(owner: LifecycleOwner) {
-        stopScan()
-        bcScanReceiver.destroy()
-        super.onDestroy(owner)
-    }
-
-    /**
-     * Проверяем ошибки.
-     */
-    private fun isLeScanNoError(intent: Intent) : Boolean {
-        if (intent.hasExtra(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)) {
-            val callbackType =
-                intent.getIntExtra(BluetoothLeScanner.EXTRA_CALLBACK_TYPE, -1)
-            if (callbackType >= 0) {
-                if (intent.hasExtra(BluetoothLeScanner.EXTRA_ERROR_CODE)) {
-                    val errorCode
-                            = intent.getIntExtra(BluetoothLeScanner.EXTRA_ERROR_CODE, -1 )
-                    mutableStateFlowError.tryEmit(errorCode)
-                    Log.e(logTag, "Scan error: $errorCode")
-                    return false
+                ) {
+                    filterRepeat(bluetoothDevice)
+                    onStopOnFind()
                 }
             }
         }
-        return true
     }
 
     fun onScanReceived(intent: Intent) {
