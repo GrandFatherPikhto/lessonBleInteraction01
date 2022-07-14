@@ -10,6 +10,7 @@ import com.grandfatherpikhto.blin.receiver.BcGattReceiver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -21,12 +22,32 @@ class BleGattManager constructor(private val context: Context,
 
     }
 
+    enum class State(val value:Int) {
+        Unknown       (0x00),  // Просто, для инициализации
+        Pairing       (0x01),  // Устройство сопрягается
+        Paired        (0x02),  // Устройство сопряжено
+        RejectPairing (0x03),  // Отказ в сопряжении устройства
+        Rescanning    (0x04),  // Запущено пересканирование по адресу устройства
+        Rescanned     (0x05),  // Пересканирование окончено
+        RescanError   (0x06),  // Ошибка пересканирования
+        Disconnecting (0x07),  // Отключение от GATT
+        Disconnected  (0x08),  // Отключены
+        Connecting    (0x09),  // Процесс подключения к GATT
+        Connected     (0x0A),  // Подключены
+        Discovering   (0x0B),  // Начали исследовать сервисы
+        Discovered    (0x0C),  // Сервисы исследованы
+        Error         (0xFE),  // Получена ошибка
+        FatalError    (0xFF)   // Получена фатальная ошибка. Возвращаемся к Фрагменту сканирования устройств
+    }
+
     private val logTag = this.javaClass.simpleName
     private val bluetoothManager:BluetoothManager
             = context.getSystemService(Context.BLUETOOTH_SERVICE)
             as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bleGattCallback  = BleGattCallback(this, dispatcher)
+    private val bcGattReceiver   = BcGattReceiver(dispatcher)
+    private val bleRescanManager = BleRescanManager(bleScanManager, dispatcher)
     private var bluetoothDevice:BluetoothDevice? = null
     private var reconnectOnError = true
     private var reconnectCounter = 0
@@ -34,21 +55,21 @@ class BleGattManager constructor(private val context: Context,
     private var scope = CoroutineScope(dispatcher)
     private val maxReconnect = 6
     private var waitForBound = false
-    private val bcGattReceiver = BcGattReceiver(this)
 
     private val mutableStateFlowConnected = MutableStateFlow(false)
     val flowConnected get() = mutableStateFlowConnected.asStateFlow()
     val connected get() = mutableStateFlowConnected.value
 
-    private val msfConnectionState  = MutableStateFlow(-1)
+    private val msfConnectionState  = MutableStateFlow(State.Disconnected)
     val flowConnectionState get() = msfConnectionState.asStateFlow()
     val connectionState get() = msfConnectionState.value
 
-    private val msfConnectionStatus  = MutableStateFlow(-1)
-    val flowConnectionStatus get() = msfConnectionState.asStateFlow()
-    val connectionStatus get() = msfConnectionStatus.value
+//    private val msfConnectionStatus  = MutableStateFlow(-1)
+//    val flowConnectionStatus get() = msfConnectionState.asStateFlow()
+//    val connectionStatus get() = msfConnectionStatus.value
 
     private var bluetoothGatt:BluetoothGatt? = null
+    val gatt get() = bluetoothGatt
 
     override fun onCreate(owner: LifecycleOwner) {
         super.onCreate(owner)
@@ -63,7 +84,33 @@ class BleGattManager constructor(private val context: Context,
     }
 
     init {
+        scope.launch {
+            BleScanManager.stateFlowDevice.filterNotNull().collect { device ->
+                if (device == bluetoothDevice && reconnectOnError) {
+                    doConnect()
+                }
+            }
+        }
 
+        scope.launch {
+            bcGattReceiver.flowState.collect { bondState ->
+                when(bondState) {
+                    BcGattReceiver.State.Bonding -> {
+                        msfConnectionState.tryEmit(State.Pairing)
+                    }
+                    BcGattReceiver.State.Bondend -> {
+                        msfConnectionState.tryEmit(State.Paired)
+                        doConnect()
+                    }
+                    BcGattReceiver.State.Error -> {
+                        msfConnectionState.tryEmit(State.Error)
+                    }
+                    else -> {
+
+                    }
+                }
+            }
+        }
     }
 
     fun connect(address:String) {
@@ -84,8 +131,7 @@ class BleGattManager constructor(private val context: Context,
             if (device.bondState
                 == BluetoothDevice.BOND_NONE) {
                 Log.d(logTag, "Пытаемся сопрячь устройство ${device.address}")
-                waitForBound = true
-                device.createBond()
+                bcGattReceiver.bondRequest(device)
             } else {
                 doConnect()
             }
@@ -106,7 +152,10 @@ class BleGattManager constructor(private val context: Context,
 
     private fun doRescan() {
         doDisconnect()
-
+        msfConnectionState.tryEmit(State.Rescanning)
+        bluetoothDevice?.let { device ->
+            bleRescanManager.rescan(device)
+        }
     }
 
     /**
@@ -141,19 +190,6 @@ class BleGattManager constructor(private val context: Context,
     }
 
     /**
-     * Получает от рессивера подтверждение сопряжения и повторяет попытку подключения
-     * BluetoothDevice.BOND_NONE    10
-     * BluetoothDevice.BOND_BONDING 11
-     * BluetoothDevice.BOND_BONDED  12
-     */
-    fun onBondStateChanged(bluetoothDevice: BluetoothDevice, prevBondState: Int, bondState: Int) {
-        if (waitForBound && bluetoothDevice == this.bluetoothDevice) {
-            waitForBound = false
-            connect()
-        }
-    }
-
-    /**
      * Интерфейсы исследованы. Сбрасываем счётчик переподключений и
      * генерируем событие о полном подключении. Можно принимать и передавать данные
      */
@@ -163,34 +199,41 @@ class BleGattManager constructor(private val context: Context,
                 bluetoothGatt = it
                 Log.d(logTag, "Services discovered $bluetoothDevice")
                 mutableStateFlowConnected.tryEmit(true)
+                msfConnectionState.tryEmit(State.Discovered)
                 reconnectCounter = 0
             }
         }
     }
 
     fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-        msfConnectionState.tryEmit(newState)
-        msfConnectionStatus.tryEmit(status)
+//        msfConnectionState.tryEmit(newState)
+//        msfConnectionStatus.tryEmit(status)
         if (status == BluetoothGatt.GATT_SUCCESS) {
             when (newState) {
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    msfConnectionState.tryEmit(State.Disconnected)
                     Log.d(logTag, "Device $bluetoothDevice disconnected")
                     if (mutexClose.isLocked) {
                         mutexClose.unlock(this)
                     }
                 }
                 BluetoothProfile.STATE_CONNECTING -> {
+                    msfConnectionState.tryEmit(State.Connecting)
                     reconnectCounter ++
                 }
                 BluetoothProfile.STATE_CONNECTED -> {
                     Log.d(logTag, "Connected: $bluetoothDevice")
+                    msfConnectionState.tryEmit(State.Connected)
                     gatt?.let {
+                        msfConnectionState.tryEmit(State.Discovering)
                         if(!it.discoverServices()) {
+                            msfConnectionState.tryEmit(State.Error)
                             doDisconnect()
                         }
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTING -> {
+                    msfConnectionState.tryEmit(State.Disconnecting)
                     scope.launch {
                         if (!mutexClose.isLocked) {
                             mutexClose.lock(this)
@@ -202,9 +245,10 @@ class BleGattManager constructor(private val context: Context,
                 }
             }
         } else {
+            msfConnectionState.tryEmit(State.Error)
             if (reconnectOnError) {
                 if (reconnectCounter < maxReconnect) {
-                    doConnect()
+                    doRescan()
                 } else {
                     disconnect()
                 }
