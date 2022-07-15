@@ -49,12 +49,17 @@ class ServicesFragment : Fragment() {
                     bleManager.flowConnectionState.collect { state ->
                         when(state) {
                             BleGattManager.State.Connected -> {
+                                actionConnect.isEnabled = true
                                 actionConnect.title = getString(R.string.device_disconnect)
                                 actionConnect.setIcon(R.drawable.ic_bluetooth_disconnected)
                             }
-                            else -> {
+                            BleGattManager.State.Disconnected -> {
+                                actionConnect.isEnabled = true
                                 actionConnect.title = getString(R.string.device_connect)
                                 actionConnect.setIcon(R.drawable.ic_bluetooth_connected)
+                            }
+                            else -> {
+                                actionConnect.isEnabled = false
                             }
                         }
                     }
