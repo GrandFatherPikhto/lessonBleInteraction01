@@ -12,6 +12,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.grandfatherpikhto.blin.BleBondManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
@@ -188,6 +189,12 @@ class ServicesFragment : Fragment() {
                 mainActivityViewModel.currentDevice?.let { device ->
                     if (device.bondState != BluetoothDevice.BOND_BONDED) {
                         bleManager.bondRequest(device)
+                    }
+                }
+
+                lifecycleScope.launch {
+                    bleManager.flowBondState.collect { state ->
+                        Log.d(logTag, "BondState: $state")
                     }
                 }
             }

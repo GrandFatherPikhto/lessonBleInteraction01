@@ -1,5 +1,6 @@
 package com.grandfatherpikhto.lessonbleinteraction01.ui
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import com.google.android.material.snackbar.Snackbar
@@ -13,8 +14,10 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.core.content.edit
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.blin.BleScanManager
@@ -31,6 +34,7 @@ import kotlin.system.exitProcess
 class MainActivity : AppCompatActivity() {
 
     private val logTag = this.javaClass.simpleName
+    private val currentDevicePreference = "current_device"
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
@@ -46,6 +50,10 @@ class MainActivity : AppCompatActivity() {
             lifecycle.addObserver(it)
             it
         }
+    }
+
+    private val preferences: SharedPreferences by lazy {
+        PreferenceManager.getDefaultSharedPreferences (applicationContext)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,10 +74,10 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-        binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show()
-        }
+//        binding.fab.setOnClickListener { view ->
+//            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+//                .setAction("Action", null).show()
+//        }
 
         addMainMenuProvider()
 
@@ -90,12 +98,19 @@ class MainActivity : AppCompatActivity() {
             "android.permission.ACCESS_COARSE_LOCATION",
             "android.permission.ACCESS_FINE_LOCATION",
         ))
+
+        loadPreferences()
     }
 
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration)
                 || super.onSupportNavigateUp()
+    }
+
+    override fun onPause() {
+        savePreferences()
+        super.onPause()
     }
 
     /**
@@ -115,5 +130,27 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun loadPreferences() {
+        preferences.apply {
+            getString(currentDevicePreference, null)?.let { address ->
+                Log.d(logTag, "Saved address: $address")
+                bleManager.getBluetoothDevice(address)?.let { device ->
+                    mainActivityViewModel.changeCurrentDevice(device)
+                    findNavController(R.id.nav_host_fragment_content_main)
+                        .navigate(R.id.action_ScanFragment_to_ServicesFragment)
+                }
+            }
+        }
+    }
+
+    private fun savePreferences() {
+        Log.d(logTag, "Save address: ${mainActivityViewModel.currentDevice?.address}")
+        preferences.edit {
+            mainActivityViewModel.currentDevice?.let { device ->
+                putString(currentDevicePreference, device.address)
+            }
+        }
     }
 }

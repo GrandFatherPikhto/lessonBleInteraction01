@@ -105,4 +105,8 @@ class BleManager constructor(private val context: Context,
 
     fun bondRequest(bluetoothDevice: BluetoothDevice)
         = bleBondManager.bondRequest(bluetoothDevice)
+
+    fun getBluetoothDevice(address: String) : BluetoothDevice? {
+        return adapter.getRemoteDevice(address)
+    }
 }
