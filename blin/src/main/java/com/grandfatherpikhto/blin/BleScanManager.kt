@@ -77,8 +77,6 @@ class BleScanManager (private val bleManager: BleManager,
                 scannedDevices.clear()
             }
 
-            Log.d(logTag, "startScan()")
-
             this.addresses.clear()
             this.addresses.addAll(addresses)
 
@@ -117,7 +115,6 @@ class BleScanManager (private val bleManager: BleManager,
     @SuppressLint("MissingPermission")
     fun stopScan() {
         if (state == State.Scanning) {
-            Log.d(logTag, "stopScan()")
             bluetoothLeScanner.stopScan(bleScanPendingIntent)
             msfState.tryEmit(State.Stopped)
         }
@@ -139,7 +136,7 @@ class BleScanManager (private val bleManager: BleManager,
         scanFilters.add(filter)
     }
 
-    fun onDestroy(owner: LifecycleOwner) {
+    fun onDestroy() {
         stopScan()
         bcScanReceiver.onDestroy()
     }
@@ -204,7 +201,6 @@ class BleScanManager (private val bleManager: BleManager,
 
     @SuppressLint("MissingPermission")
     private fun filterScanResult (scanResult: ScanResult) {
-        Log.d(logTag, "Scan Result: $scanResult")
         scanResult?.let { result ->
             result.device?.let { bluetoothDevice ->
                 if (filterName(bluetoothDevice)
