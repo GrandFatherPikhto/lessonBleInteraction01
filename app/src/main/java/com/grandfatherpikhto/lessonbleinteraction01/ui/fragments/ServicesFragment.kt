@@ -9,7 +9,6 @@ import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,7 +19,6 @@ import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentServicesBinding
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.RvServicesAdapter
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.MainActivityViewModel
-import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.ServicesViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -38,7 +36,7 @@ class ServicesFragment : Fragment() {
     private val bleManager get() = _bleManager!!
 
     private val logTag = this.javaClass.simpleName
-    private val servicesViewModel by viewModels<ServicesViewModel>()
+    // private val servicesViewModel by viewModels<ServicesViewModel>()
     private val mainActivityViewModel by activityViewModels<MainActivityViewModel>()
 
     private val servicesAdapter = RvServicesAdapter()
@@ -48,7 +46,7 @@ class ServicesFragment : Fragment() {
             menuInflater.inflate(R.menu.menu_services, menu)
             menu.findItem(R.id.action_connect).let { actionConnect ->
                 lifecycleScope.launch {
-                    bleManager.flowConnectionState.collect() { state ->
+                    bleManager.flowConnectionState.collect { state ->
                         when(state) {
                             BleGattManager.State.Connected -> {
                                 actionConnect.title = getString(R.string.device_disconnect)
@@ -104,7 +102,7 @@ class ServicesFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         _bleManager = (requireContext().applicationContext as BleApplication).bleManager
         _binding = FragmentServicesBinding.inflate(inflater, container, false)
 
@@ -190,7 +188,7 @@ class ServicesFragment : Fragment() {
             }
 
             lifecycleScope.launch {
-                bleManager.flowBondState.collect() { _ ->
+                bleManager.flowBondState.collect {
                     visibleBondButton()
                 }
             }
