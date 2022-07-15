@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 return when (menuItem.itemId) {
                     R.id.action_settings -> true
-                    else -> true
+                    else -> false
                 }
             }
         })

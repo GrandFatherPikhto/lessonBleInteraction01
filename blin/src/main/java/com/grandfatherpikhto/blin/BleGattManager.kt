@@ -22,6 +22,7 @@ class BleGattManager constructor(private val bleManager: BleManager,
     private val bluetoothAdapter = bleManager.adapter
     private val bleGattCallback  = BleGattCallback(this, dispatcher)
     private var bluetoothDevice:BluetoothDevice? = null
+    val device get() = bluetoothDevice
     private var scope = CoroutineScope(dispatcher)
 
     private var attemptReconnect = true

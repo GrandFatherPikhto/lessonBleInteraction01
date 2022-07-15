@@ -4,6 +4,8 @@ import android.bluetooth.BluetoothDevice
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -11,7 +13,6 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.grandfatherpikhto.blin.BleBondManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
@@ -42,6 +43,64 @@ class ServicesFragment : Fragment() {
 
     private val servicesAdapter = RvServicesAdapter()
 
+    private val servicesMenuProvider = object : MenuProvider {
+        override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+            menuInflater.inflate(R.menu.menu_services, menu)
+            menu.findItem(R.id.action_connect).let { actionConnect ->
+                lifecycleScope.launch {
+                    bleManager.flowConnectionState.collect() { state ->
+                        when(state) {
+                            BleGattManager.State.Connected -> {
+                                actionConnect.title = getString(R.string.device_disconnect)
+                                actionConnect.setIcon(R.drawable.ic_baseline_bluetooth_disabled_24)
+                            }
+                            else -> {
+                                actionConnect.title = getString(R.string.device_connect)
+                                actionConnect.setIcon(R.drawable.ic_baseline_bluetooth_connected_24)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+            Log.d(logTag, "onMenuItemSelected(${menuItem.itemId})")
+            return when(menuItem.itemId) {
+                R.id.action_connect -> {
+                    when(bleManager.connectionState) {
+                        BleGattManager.State.Connected -> {
+                            bleManager.close()
+                        }
+                        BleGattManager.State.Disconnected -> {
+                            mainActivityViewModel.currentDevice?.let { device ->
+                                bleManager.connect(device.address)
+                            }
+                        }
+                        BleGattManager.State.Error -> {
+
+                        }
+                        else -> {
+
+                        }
+                    }
+
+                    true
+                }
+                R.id.action_scanner -> {
+                    bleManager.close()
+                    findNavController().navigate(R.id.action_ServicesFragment_to_ScanFragment)
+                    true
+                }
+                else -> {
+                    true
+                }
+            }
+        }
+    }
+
+
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -55,12 +114,14 @@ class ServicesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initServicesFragment()
+        linkMenu(true)
     }
 
 
     override fun onDestroyView() {
         super.onDestroyView()
         bleManager.close()
+        linkMenu(false)
         _binding = null
     }
 
@@ -73,14 +134,22 @@ class ServicesFragment : Fragment() {
         }
     }
 
+    private fun linkMenu(link: Boolean) {
+        val menuHost: MenuHost = requireActivity()
+        if (link) {
+            menuHost.addMenuProvider(servicesMenuProvider)
+        } else {
+            menuHost.removeMenuProvider(servicesMenuProvider)
+        }
+    }
+
     private fun initServicesFragment() {
         Log.d(logTag, "BluetoothDevice ${mainActivityViewModel.currentDevice}")
         binding.apply {
             rvServices.adapter = servicesAdapter
             rvServices.layoutManager = LinearLayoutManager(requireContext())
             btnConnect.setOnClickListener {
-                if (bleManager.connectState == BleGattManager.State.Connected) {
-                    Log.d(logTag, "Close connect ${mainActivityViewModel.currentDevice}")
+                if (bleManager.connectionState == BleGattManager.State.Connected) {
                     bleManager.close()
                 } else {
                     mainActivityViewModel.currentDevice?.let { device ->
@@ -120,26 +189,23 @@ class ServicesFragment : Fragment() {
                 }
             }
 
-            btnBond.isVisible =
-                mainActivityViewModel.currentDevice?.let { bluetoothDevice ->
-                    bluetoothDevice.bondState != BluetoothDevice.BOND_BONDED
-                } ?: false
-
             lifecycleScope.launch {
-                bleManager.flowBondState.collect() { state ->
-                    when(state) {
-                        BleBondManager.State.Bondend -> {
-                            btnBond.isVisible = false
-                        }
-                        else -> {
-                            btnBond.isVisible = true
-                        }
-                    }
+                bleManager.flowBondState.collect() { _ ->
+                    visibleBondButton()
                 }
             }
         }
 
         fillBleDevice(mainActivityViewModel.currentDevice)
+    }
+
+    private fun visibleBondButton() {
+        binding.apply {
+            btnBond.isVisible =
+                mainActivityViewModel.currentDevice?.let { bluetoothDevice ->
+                    bluetoothDevice.bondState != BluetoothDevice.BOND_BONDED
+                } ?: false
+        }
     }
 }
 

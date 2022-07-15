@@ -15,9 +15,9 @@ class RvBtHolder constructor(private val view: View) : RecyclerView.ViewHolder(v
             tvName.text = bluetoothDevice.name
                 ?: view.context.getString(R.string.default_device_name)
             if (bluetoothDevice.bondState == BluetoothDevice.BOND_BONDED) {
-                ivBond.setImageResource(R.drawable.ic_baseline_bluetooth_connected_24)
+                ivBond.setImageResource(R.drawable.ic_bluetooth_paired)
             } else {
-                ivBond.setImageResource(R.drawable.ic_baseline_bluetooth_48)
+                ivBond.setImageResource(R.drawable.ic_bluetooth_unpaired)
             }
         }
     }

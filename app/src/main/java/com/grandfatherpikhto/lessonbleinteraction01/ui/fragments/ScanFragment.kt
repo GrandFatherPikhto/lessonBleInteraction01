@@ -1,8 +1,10 @@
 package com.grandfatherpikhto.lessonbleinteraction01.ui.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.*
 import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -10,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.grandfatherpikhto.blin.BleManager
+import com.grandfatherpikhto.blin.BleScanManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
 import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentScanBinding
@@ -39,8 +42,38 @@ class ScanFragment : Fragment() {
     private var _bleManager: BleManager? = null
     private val bleManager:BleManager get() = _bleManager!!
 
-    private val scanMenuProvider:ScanMenuProvider by lazy {
-        ScanMenuProvider(requireContext(), lifecycleScope)
+    private val scanMenuProvider = object : MenuProvider {
+        override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+            Log.d(logTag, "onCreateMenu()")
+            menuInflater.inflate(R.menu.menu_scan, menu)
+            menu.findItem(R.id.action_scan)?.let { actionScan ->
+                lifecycleScope.launch {
+                    bleManager.flowScanState.collect { state ->
+                        if (state == BleScanManager.State.Scanning) {
+                            actionScan.title = getString(R.string.action_stop_scan)
+                            actionScan.setIcon(R.drawable.ic_baseline_man_24)
+                        } else {
+                            actionScan.title = getString(R.string.action_scan)
+                            actionScan.setIcon(R.drawable.ic_baseline_directions_run_24)
+                        }
+                    }
+                }
+            }
+        }
+
+        override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+            return when(menuItem.itemId) {
+                R.id.action_scan -> {
+                    if (bleManager.scanState == BleScanManager.State.Scanning) {
+                        bleManager.stopScan()
+                    } else {
+                        bleManager.startScan(stopTimeout = 10000L)
+                    }
+                    true
+                }
+                else -> { true }
+            }
+        }
     }
 
     override fun onCreateView(
@@ -56,6 +89,7 @@ class ScanFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initFragment()
+        linkMenu(true)
     }
 
     override fun onPause() {
@@ -66,13 +100,16 @@ class ScanFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        val menuHost: MenuHost = requireActivity()
-        menuHost.removeMenuProvider(scanMenuProvider)
+        linkMenu(false)
     }
 
-    private fun addScanMenu() {
+    private fun linkMenu(link: Boolean) {
         val menuHost: MenuHost = requireActivity()
-        menuHost.addMenuProvider(scanMenuProvider)
+        if (link) {
+            menuHost.addMenuProvider(scanMenuProvider)
+        } else {
+            menuHost.removeMenuProvider(scanMenuProvider)
+        }
     }
 
     private fun initFragment() {
@@ -113,7 +150,5 @@ class ScanFragment : Fragment() {
                 scanViewModel.changeScanError(errorCode)
             }
         }
-
-        addScanMenu()
     }
 }

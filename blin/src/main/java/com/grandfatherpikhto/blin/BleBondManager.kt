@@ -47,7 +47,9 @@ class BleBondManager constructor(private val context: Context,
     }
 
     fun bondRequest(bluetoothDevice: BluetoothDevice) {
-        if(bluetoothDevice.bondState != BluetoothDevice.BOND_BONDED) {
+        if(bluetoothDevice.bondState == BluetoothDevice.BOND_BONDED) {
+            msfState.tryEmit(State.Bondend)
+        } else {
             requestDevice = bluetoothDevice
             if (bluetoothDevice.createBond()) {
                 msfState.tryEmit(State.Bonding)

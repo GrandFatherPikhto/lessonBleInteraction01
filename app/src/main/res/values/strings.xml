@@ -19,5 +19,8 @@
     <string name="device_disconnect">Disconnect</string>
     <string name="device_bond">Bond Device</string>
     <string name="device_unbond">Unbond device</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_close">Close</string>
+    <string name="action_scanner">To Scanner</string>
     <!-- TODO: Remove or change this placeholder text -->
 </resources>

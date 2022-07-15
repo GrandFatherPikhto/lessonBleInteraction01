@@ -16,4 +16,7 @@
     <string name="device_disconnect">Отключить</string>
     <string name="device_bond">Сопряжение</string>
     <string name="device_unbond">Отменить сопряжение</string>
+    <string name="action_connect">Подключить</string>
+    <string name="action_close">Отключить</string>
+    <string name="action_scanner">Сканнер</string>
 </resources>

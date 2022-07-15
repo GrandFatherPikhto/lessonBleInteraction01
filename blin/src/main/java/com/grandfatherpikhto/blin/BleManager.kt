@@ -48,13 +48,15 @@ class BleManager constructor(private val context: Context,
     val scannedDevice get() = scanner.device
 
     val flowConnectionState get() = connector.flowConnectionState
-    val connectState get() = connector.connectionState
+    val connectionState get() = connector.connectionState
     // Не забывай про то, что свойство не последовательность, ей геттер нужен!
     val gatt:BluetoothGatt? get() = connector.gatt
     val flowDevice get() = scanner.flowDevice
     val flowScanError get() = scanner.flowError
     val flowBondState get() = bleBondManager.flowState
     val bondState get() = bleBondManager.state
+
+    val currentDevice get() = connector.device
 
     override fun onCreate(owner: LifecycleOwner) {
         super.onCreate(owner)

@@ -14,10 +14,11 @@
         <entry key="app/src/main/res/layout/fragment_services.xml" value="0.25" />
         <entry key="app/src/main/res/layout/fragment_splash.xml" value="0.13360507246376813" />
         <entry key="app/src/main/res/layout/layout_characteristic.xml" value="0.1697061803444782" />
-        <entry key="app/src/main/res/layout/layout_device.xml" value="0.12853863810252486" />
+        <entry key="app/src/main/res/layout/layout_device.xml" value="0.5" />
         <entry key="app/src/main/res/layout/layout_service.xml" value="0.21" />
         <entry key="app/src/main/res/menu/menu_main.xml" value="0.35" />
         <entry key="app/src/main/res/menu/menu_scan.xml" value="0.1578125" />
+        <entry key="app/src/main/res/menu/menu_services.xml" value="0.3489583333333333" />
       </map>
     </option>
   </component>
