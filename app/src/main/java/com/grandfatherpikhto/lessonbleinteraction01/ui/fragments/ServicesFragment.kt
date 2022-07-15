@@ -4,12 +4,14 @@ import android.bluetooth.BluetoothDevice
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.grandfatherpikhto.blin.BleBondManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
@@ -114,6 +116,24 @@ class ServicesFragment : Fragment() {
                 mainActivityViewModel.currentDevice?.let { device ->
                     if (device.bondState != BluetoothDevice.BOND_BONDED) {
                         bleManager.bondRequest(device)
+                    }
+                }
+            }
+
+            btnBond.isVisible =
+                mainActivityViewModel.currentDevice?.let { bluetoothDevice ->
+                    bluetoothDevice.bondState != BluetoothDevice.BOND_BONDED
+                } ?: false
+
+            lifecycleScope.launch {
+                bleManager.flowBondState.collect() { state ->
+                    when(state) {
+                        BleBondManager.State.Bondend -> {
+                            btnBond.isVisible = false
+                        }
+                        else -> {
+                            btnBond.isVisible = true
+                        }
                     }
                 }
             }

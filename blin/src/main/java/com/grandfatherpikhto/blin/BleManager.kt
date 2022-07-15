@@ -22,12 +22,9 @@ class BleManager constructor(private val context: Context,
     }
 
     private val logTag = this.javaClass.simpleName
-    private val attempts = 6
     private val scope = CoroutineScope(dispatcher)
 
     private var address: String? = null
-    private var doReconnect = false
-    private var tryReconnect = 0
 
     private val bluetoothManager: BluetoothManager
             = context.applicationContext.getSystemService(Context.BLUETOOTH_SERVICE)
@@ -43,8 +40,13 @@ class BleManager constructor(private val context: Context,
 
     private val bleBondManager = BleBondManager(context, dispatcher)
     val applicationContext: Context get() = context.applicationContext
+
     val flowScanState get() = scanner.flowState
     val scanState get() = scanner.state
+
+    val flowScannedDevice get() = scanner.flowDevice
+    val scannedDevice get() = scanner.device
+
     val flowConnectionState get() = connector.flowConnectionState
     val connectState get() = connector.connectionState
     // Не забывай про то, что свойство не последовательность, ей геттер нужен!
@@ -56,38 +58,13 @@ class BleManager constructor(private val context: Context,
 
     override fun onCreate(owner: LifecycleOwner) {
         super.onCreate(owner)
-        scope.launch {
-            connector.flowConnectionState.collect { state ->
-                if (state == BleGattManager.State.Error) {
-                    address?.let { bluetoothAddress ->
-                        if (doReconnect) {
-                            scanner.startScan(
-                                addresses = listOf(bluetoothAddress),
-                                stopOnFind = true
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        scope.launch {
-            scanner.flowState.collect { state ->
-                if (state == BleScanManager.State.Stopped && doReconnect && tryReconnect < attempts) {
-                    address?.let { bluetoothAddress ->
-                        tryReconnect ++
-                        connector.connect(bluetoothAddress)
-                    }
-                }
-            }
-        }
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
         super.onDestroy(owner)
-        bleGattManager.onDestroy(owner)
-        bleScanManager.onDestroy(owner)
-        bleBondManager.onDestroy(owner)
+        bleGattManager.onDestroy()
+        bleScanManager.onDestroy()
+        bleBondManager.onDestroy()
     }
 
     fun startScan(addresses: List<String> = listOf(),
@@ -98,11 +75,9 @@ class BleManager constructor(private val context: Context,
                   stopTimeout: Long = 0L,
                   clearDevices:Boolean = true
     ) : Boolean {
-        if (connector.connectionState == BleGattManager.State.Discovered) {
+        if (connector.connectionState == BleGattManager.State.Connected) {
             connector.disconnect()
         }
-
-        doReconnect = false
 
         return scanner.startScan(addresses,
             names,
@@ -116,7 +91,7 @@ class BleManager constructor(private val context: Context,
     fun stopScan() = scanner.stopScan()
 
     fun connect(address: String): BluetoothGatt? {
-        doReconnect = true
+        this.address = address
         if (scanner.state == BleScanManager.State.Scanning) {
             scanner.stopScan()
         }
@@ -124,9 +99,7 @@ class BleManager constructor(private val context: Context,
         return connector.connect(address)
     }
 
-    fun close() {
-        connector.disconnect()
-    }
+    fun close() = connector.disconnect()
 
     fun bondRequest(bluetoothDevice: BluetoothDevice)
         = bleBondManager.bondRequest(bluetoothDevice)

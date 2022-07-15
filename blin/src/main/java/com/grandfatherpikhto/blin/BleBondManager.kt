@@ -42,7 +42,7 @@ class BleBondManager constructor(private val context: Context,
             makeIntentFilter())
     }
 
-    fun onDestroy(owner: LifecycleOwner) {
+    fun onDestroy() {
         context.applicationContext.unregisterReceiver(bcBondReceiver)
     }
 

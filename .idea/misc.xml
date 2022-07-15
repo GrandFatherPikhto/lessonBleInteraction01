@@ -10,7 +10,7 @@
         <entry key="app/src/main/res/drawable/ic_twogears.xml" value="0.2085" />
         <entry key="app/src/main/res/layout/btdevice_layout.xml" value="0.26171875" />
         <entry key="app/src/main/res/layout/fragment_first.xml" value="0.35" />
-        <entry key="app/src/main/res/layout/fragment_scan.xml" value="0.35" />
+        <entry key="app/src/main/res/layout/fragment_scan.xml" value="0.33" />
         <entry key="app/src/main/res/layout/fragment_services.xml" value="0.25" />
         <entry key="app/src/main/res/layout/fragment_splash.xml" value="0.13360507246376813" />
         <entry key="app/src/main/res/layout/layout_characteristic.xml" value="0.1697061803444782" />

@@ -20,9 +20,9 @@ class BleGattCallback constructor(private val bleGattManager: BleGattManager,
     private val scope = CoroutineScope(dispatcher)
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-        super.onConnectionStateChange(gatt, status, newState)
-        Log.e(logTag, "gatt: $gatt, $status, $newState")
+        Log.d(logTag, "onConnectionStateChange(status = $status, newState = $newState)")
         bleGattManager.onConnectionStateChange(gatt, status, newState)
+        super.onConnectionStateChange(gatt, status, newState)
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
