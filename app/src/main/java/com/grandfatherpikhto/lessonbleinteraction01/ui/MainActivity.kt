@@ -86,16 +86,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        lifecycleScope.launch {
-            mainActivityViewModel.flowCurrentDevice.collect { bluetoothDevice ->
-                if (bluetoothDevice == null) {
-                    bleManager.close()
-                } else {
-                    bleManager.connect(bluetoothDevice.address)
-                }
-            }
-        }
-
         requestPermissions.requestPermissions(listOf(
             "android.permission.ACCESS_COARSE_LOCATION",
             "android.permission.ACCESS_FINE_LOCATION",

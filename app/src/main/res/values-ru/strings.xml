@@ -12,4 +12,8 @@
     <string name="action_scan">Сканировать</string>
     <string name="action_stop_scan">Остановить</string>
     <string name="default_characterstic_value">Неизвестное значение</string>
+    <string name="device_connect">Подключить</string>
+    <string name="device_disconnect">Отключить</string>
+    <string name="device_bond">Сопряжение</string>
+    <string name="device_unbond">Отменить сопряжение</string>
 </resources>

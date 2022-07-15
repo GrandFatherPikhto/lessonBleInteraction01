@@ -15,5 +15,9 @@
     <string name="action_stop_scan">Stop Scan</string>
     <string name="default_uuid" translatable="false">123e4567-e89b-12d3-a456-426614174000</string>
     <string name="default_characterstic_value">Unknown value</string>
+    <string name="device_connect">Connect</string>
+    <string name="device_disconnect">Disconnect</string>
+    <string name="device_bond">Bond Device</string>
+    <string name="device_unbond">Unbond device</string>
     <!-- TODO: Remove or change this placeholder text -->
 </resources>

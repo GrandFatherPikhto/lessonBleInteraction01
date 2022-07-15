@@ -6,16 +6,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.LayoutServiceBinding
 
-class ServiceHolder constructor(private val view: View) : RecyclerView.ViewHolder(view) {
+class RvServiceHolder constructor(private val view: View) : RecyclerView.ViewHolder(view) {
     private val binding = LayoutServiceBinding.bind(view)
-    private val characteristicAdapter = CharacteristicAdapter()
+    private val rvCharacteristicAdapter = RvCharacteristicAdapter()
 
     fun bind(bluetoothService: BluetoothGattService) {
         binding.apply {
             tvService.text = bluetoothService.uuid.toString()
-            rvCharacteristics.adapter = characteristicAdapter
+            rvCharacteristics.adapter = rvCharacteristicAdapter
             rvCharacteristics.layoutManager = LinearLayoutManager(view.context)
-            characteristicAdapter.bluetoothGattService = bluetoothService
+            rvCharacteristicAdapter.bluetoothGattService = bluetoothService
         }
     }
 }

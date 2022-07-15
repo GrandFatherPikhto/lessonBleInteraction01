@@ -5,15 +5,17 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.grandfatherpikhto.blin.BleGattManager
 import com.grandfatherpikhto.blin.BleManager
 import com.grandfatherpikhto.lessonbleinteraction01.BleApplication
 import com.grandfatherpikhto.lessonbleinteraction01.R
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.FragmentServicesBinding
-import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.ServicesAdapter
+import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters.RvServicesAdapter
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.MainActivityViewModel
 import com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.models.ServicesViewModel
 import kotlinx.coroutines.launch
@@ -32,11 +34,11 @@ class ServicesFragment : Fragment() {
     private var _bleManager:BleManager? = null
     private val bleManager get() = _bleManager!!
 
-    private val logTag = this.javaClass.name
+    private val logTag = this.javaClass.simpleName
     private val servicesViewModel by viewModels<ServicesViewModel>()
-    private val mainActivityViewModel by viewModels<MainActivityViewModel>()
+    private val mainActivityViewModel by activityViewModels<MainActivityViewModel>()
 
-    private val servicesAdapter = ServicesAdapter()
+    private val servicesAdapter = RvServicesAdapter()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -49,32 +51,8 @@ class ServicesFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        mainActivityViewModel.currentDevice?.let { device ->
-            Log.d(logTag, "Try connect to device $device")
-            // bleGattManager?.connect(device.address)
-        }
-
-        binding.apply {
-            rvServices.adapter = servicesAdapter
-            rvServices.layoutManager = LinearLayoutManager(requireContext())
-        }
-
-        lifecycleScope.launch {
-            bleManager.flowConnectionState.collect { state ->
-                Log.d(logTag, "Connection state: $state")
-                if (state == BleGattManager.State.Discovered) {
-                    Log.d(logTag, "Discovered ${bleManager.gatt}, ${bleManager.connector.gatt}")
-                    servicesAdapter.bluetoothGatt = bleManager.gatt
-                    bindBleDevice(bleManager.gatt?.device)
-                } else {
-                    servicesAdapter.bluetoothGatt = null
-                    bindBleDevice(null)
-                }
-            }
-        }
-
-
         super.onViewCreated(view, savedInstanceState)
+        initServicesFragment()
     }
 
 
@@ -84,13 +62,64 @@ class ServicesFragment : Fragment() {
         _binding = null
     }
 
-    private fun bindBleDevice(bluetoothDevice: BluetoothDevice?) {
+    private fun fillBleDevice(bluetoothDevice: BluetoothDevice?) {
         binding.apply {
             tvBleDeviceAddress.text =
                 bluetoothDevice?.address ?: getString(R.string.default_device_address)
             tvBleDeviceName.text =
                 bluetoothDevice?.name ?: getString(R.string.default_device_name)
         }
+    }
+
+    private fun initServicesFragment() {
+        Log.d(logTag, "BluetoothDevice ${mainActivityViewModel.currentDevice}")
+        binding.apply {
+            rvServices.adapter = servicesAdapter
+            rvServices.layoutManager = LinearLayoutManager(requireContext())
+            btnConnect.setOnClickListener {
+                if (bleManager.connectState == BleGattManager.State.Connected) {
+                    Log.d(logTag, "Close connect ${mainActivityViewModel.currentDevice}")
+                    bleManager.close()
+                } else {
+                    mainActivityViewModel.currentDevice?.let { device ->
+                        Log.d(logTag, "connecting $device")
+                        bleManager.connect(device.address)
+                    }
+                }
+            }
+
+            lifecycleScope.launch {
+                bleManager.flowConnectionState.collect { state ->
+                    Log.d(logTag, "Connection State: $state")
+                    when (state) {
+                        BleGattManager.State.Connected -> {
+                            servicesAdapter.bluetoothGatt = bleManager.gatt
+                            btnConnect.text = getString(R.string.device_disconnect)
+                        }
+                        BleGattManager.State.Disconnected -> {
+                            servicesAdapter.bluetoothGatt = null
+                            btnConnect.text = getString(R.string.device_connect)
+                        }
+                        BleGattManager.State.Error -> {
+                            findNavController().navigate(R.id.action_ServicesFragment_to_ScanFragment)
+                        }
+                        else -> {
+
+                        }
+                    }
+                }
+            }
+
+            btnBond.setOnClickListener {
+                mainActivityViewModel.currentDevice?.let { device ->
+                    if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                        bleManager.bondRequest(device)
+                    }
+                }
+            }
+        }
+
+        fillBleDevice(mainActivityViewModel.currentDevice)
     }
 }
 

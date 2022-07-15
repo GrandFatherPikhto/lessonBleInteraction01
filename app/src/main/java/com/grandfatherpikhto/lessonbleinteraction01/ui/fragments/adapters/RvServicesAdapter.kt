@@ -1,6 +1,5 @@
 package com.grandfatherpikhto.lessonbleinteraction01.ui.fragments.adapters
 
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattService
 import android.view.LayoutInflater
@@ -11,7 +10,7 @@ import com.grandfatherpikhto.lessonbleinteraction01.clickHandler
 import com.grandfatherpikhto.lessonbleinteraction01.longClickHandler
 import kotlin.properties.Delegates
 
-class ServicesAdapter : RecyclerView.Adapter<ServiceHolder>() {
+class RvServicesAdapter : RecyclerView.Adapter<RvServiceHolder>() {
 
     var bluetoothGatt:BluetoothGatt? by Delegates.observable(null) { _, oldValue, newValue ->
         if (newValue == null) {
@@ -24,14 +23,14 @@ class ServicesAdapter : RecyclerView.Adapter<ServiceHolder>() {
     private var handlerClick: clickHandler<BluetoothGattService>? = null
     private var handlerLongClick: longClickHandler<BluetoothGattService>? = null
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ServiceHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RvServiceHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.layout_service, parent, false)
 
-        return ServiceHolder(view)
+        return RvServiceHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ServiceHolder, position: Int) {
+    override fun onBindViewHolder(holder: RvServiceHolder, position: Int) {
         bluetoothGatt?.let { gatt ->
             gatt.services?.let { services ->
                 holder.itemView.setOnClickListener { view ->

@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.grandfatherpikhto.lessonbleinteraction01.databinding.LayoutCharacteristicBinding
 import kotlin.math.log
 
-class CharacteristicHolder(view: View) : RecyclerView.ViewHolder(view) {
+class RvCharacteristicHolder(view: View) : RecyclerView.ViewHolder(view) {
     private val logTag = this.javaClass.simpleName
     private val binding = LayoutCharacteristicBinding.bind(view)
 
