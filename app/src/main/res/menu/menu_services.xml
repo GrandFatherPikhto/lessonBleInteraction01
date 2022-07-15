@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/action_connect"
-        android:icon="@drawable/ic_baseline_bluetooth_connected_24"
+        android:icon="@drawable/ic_bluetooth_connected"
         android:title="@string/action_connect"
         app:showAsAction="ifRoom" />
     <item
