@@ -52,12 +52,12 @@ class ServicesFragment : Fragment() {
                             BleGattManager.State.Connected -> {
                                 actionConnect.isEnabled = true
                                 actionConnect.title = getString(R.string.device_disconnect)
-                                actionConnect.setIcon(R.drawable.ic_bluetooth_disconnected)
+                                actionConnect.setIcon(R.drawable.ic_disconnect)
                             }
                             BleGattManager.State.Disconnected -> {
                                 actionConnect.isEnabled = true
                                 actionConnect.title = getString(R.string.device_connect)
-                                actionConnect.setIcon(R.drawable.ic_bluetooth_connected)
+                                actionConnect.setIcon(R.drawable.ic_connect)
                             }
                             else -> {
                                 actionConnect.isEnabled = false

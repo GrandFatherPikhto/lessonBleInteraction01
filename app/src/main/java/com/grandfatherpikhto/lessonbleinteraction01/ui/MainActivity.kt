@@ -138,8 +138,13 @@ class MainActivity : AppCompatActivity() {
                 Log.d(logTag, "Saved address: $address")
                 bleManager.getBluetoothDevice(address)?.let { device ->
                     mainActivityViewModel.changeCurrentDevice(device)
-                    findNavController(R.id.nav_host_fragment_content_main)
-                        .navigate(R.id.action_ScanFragment_to_ServicesFragment)
+                    findNavController(R.id.nav_host_fragment_content_main)?.let { navController ->
+                        navController.currentDestination?.let { currentDestination ->
+                            if (currentDestination.id != R.id.ServicesFragment) {
+                                navController.navigate(R.id.action_ScanFragment_to_ServicesFragment)
+                            }
+                        }
+                    }
                 }
             }
         }

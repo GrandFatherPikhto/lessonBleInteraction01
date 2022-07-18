@@ -51,10 +51,10 @@ class ScanFragment : Fragment() {
                     bleManager.flowScanState.collect { state ->
                         if (state == BleScanManager.State.Scanning) {
                             actionScan.title = getString(R.string.action_stop_scan)
-                            actionScan.setIcon(R.drawable.ic_baseline_man_24)
+                            actionScan.setIcon(R.drawable.ic_stop)
                         } else {
                             actionScan.title = getString(R.string.action_scan)
-                            actionScan.setIcon(R.drawable.ic_baseline_directions_run_24)
+                            actionScan.setIcon(R.drawable.ic_scan)
                         }
                     }
                 }

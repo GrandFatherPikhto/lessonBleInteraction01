@@ -3,6 +3,12 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/drawable/ic_bluetooth_interaction.xml" value="0.209" />
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/drawable/ic_puckman.xml" value="0.209" />
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/layout-v23/layout_device.xml" value="0.20052083333333334" />
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/layout/layout_device.xml" value="0.75" />
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/menu/menu_scan.xml" value="0.2015625" />
+        <entry key="..\:/Users/grand/AndroidStudioProjects/lessonBleInteraction01/app/src/main/res/menu/menu_services.xml" value="0.2015625" />
         <entry key="app/src/main/res/drawable/animation.xml" value="0.2345" />
         <entry key="app/src/main/res/drawable/ic_baseline_man_24.xml" value="0.227" />
         <entry key="app/src/main/res/drawable/ic_bt01.xml" value="0.1865" />
